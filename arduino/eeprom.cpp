@@ -1,8 +1,6 @@
 #include "eeprom.h"
 #include "defines.h"
 #include "helper_methods.h"
-#include <HardwareSerial.h>
-#include <Arduino.h>
 
 int EEPROM::IOBusMSBFirst[8] = {12, 11, 10, 9, 8, 7, 6, 5};
 
@@ -135,4 +133,59 @@ void EEPROM::setAddress(short address, bool output_enable)
     digitalWrite(STCP, LOW); // Latch adress into Storage Register
     digitalWrite(STCP, HIGH);
     digitalWrite(STCP, LOW);
+}
+
+void EEPROM::writeEEPROM(short address, byte data)
+{
+    setAddress(address, /* output Enable */ false); // Latch adress into adress register, out Enable = false
+    // Write Out Data
+    for (int dparallel : IOBusMSBFirst)
+    { // Write Data to IO Bus one bit at a time, starting with MSB
+        digitalWrite(dparallel, data & 0x80);
+        data = data << 1;
+    }
+
+    digitalWrite(WRITE_ENABLE, LOW);  // Pulse write Enable LOW to initiate a Write OP on the EEPROM
+    delayMicroseconds(1);             // Give the EEPROM some time to process
+    digitalWrite(WRITE_ENABLE, HIGH); // Restore previous state
+    delayMicroseconds(2);             // Break from other OPs (to be modified)
+}
+
+void EEPROM::eraseEEPROM()
+{
+    eraseEEPROM(0xff);
+}
+
+void EEPROM::eraseEEPROM(byte data)
+{
+    outputModeBus();
+
+    for (int i = 0; i < 4; i++)
+    {
+        for (int base = 0; base < 8192; base += 16)
+        {
+            for (int offset = 0; offset < 16; offset += 1)
+            {
+                int addr = (8192 * i) + base + offset;
+                writeEEPROM(addr, data); // Actually write the data.
+                if (addr > (int)0x7FF0)
+                {
+                    Serial.print(addr, HEX);
+                    Serial.print(" ");
+                }
+            }
+
+            // Some fancy outputting to console.
+            if (base % 512 == 0)
+            {
+                Serial.println();
+                Serial.print("[0x");
+                Serial.print(i * 8192 + base, HEX);
+                Serial.print("]:");
+            }
+            Serial.print(".");
+        }
+    }
+    Serial.println("flash erased.");
+    Serial.println("end");
 }
