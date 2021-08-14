@@ -11,7 +11,8 @@ class EEPROM
 {
 
 public:
-    static int IOBusMSBFirst[8];
+    static const int IOBusSize;
+    static const int IOBusMSBFirst[8];
 
     static void outputModeBus();
     static void inputModeBus();
@@ -54,8 +55,8 @@ public:
 
     /**
      * Erase contents of eeprom and write data into every place.
-     */ 
-    void eraseEEPROM(byte data);
+     */
+    void eraseEEPROM(const byte data);
 };
 
 #endif

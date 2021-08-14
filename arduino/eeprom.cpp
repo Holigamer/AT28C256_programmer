@@ -2,7 +2,8 @@
 #include "defines.h"
 #include "helper_methods.h"
 
-int EEPROM::IOBusMSBFirst[8] = {12, 11, 10, 9, 8, 7, 6, 5};
+const int EEPROM::IOBusSize = 8;
+const int EEPROM::IOBusMSBFirst[EEPROM::IOBusSize] = {12, 11, 10, 9, 8, 7, 6, 5};
 
 EEPROM::EEPROM()
 {
@@ -10,24 +11,27 @@ EEPROM::EEPROM()
     pinMode(DATASERIAL, OUTPUT);
     pinMode(SHCP, OUTPUT);
     pinMode(STCP, OUTPUT);
+
+    digitalWrite(WRITE_ENABLE, HIGH);
     pinMode(WRITE_ENABLE, OUTPUT);
 
     digitalWrite(SHCP, LOW);
-    digitalWrite(WRITE_ENABLE, HIGH);
 }
 
 void EEPROM::inputModeBus()
 {
-    for (int dparallel : IOBusMSBFirst)
-    { // Define IO Bus as Input
+    for (int i = 0; i < IOBusSize; i++)
+    {
+        int dparallel = IOBusMSBFirst[i]; // Define IO Bus as Input
         pinMode(dparallel, INPUT);
     }
 }
 
 void EEPROM::outputModeBus()
 {
-    for (int dparallel : IOBusMSBFirst)
-    { // Define IO Bus as Output
+    for (int i = 0; i < IOBusSize; i++)
+    {
+        int dparallel = IOBusMSBFirst[i]; // Define IO Bus as Output
         pinMode(dparallel, OUTPUT);
     }
 }
@@ -37,10 +41,7 @@ void EEPROM::outputModeBus()
  */
 void EEPROM::printContent()
 {
-    for (int dparallel : IOBusMSBFirst)
-    { // Define IO Bus as Input
-        pinMode(dparallel, INPUT);
-    }
+    inputModeBus();
 
     bool failedVerification = false;
 
@@ -101,17 +102,19 @@ void EEPROM::printContent()
         Serial.print("VERIFY:");
         Serial.println(failedVerification ? "fail" : "success");
     }*/
-    Serial.println("end");
+    Serial.println("e");
 }
 
 char EEPROM::readEEPROM(short address)
 {
     setAddress(address, /* output Enable */ true); // Latch adress into adress register, output Enable = true
-    digitalWrite(WRITE_ENABLE, HIGH);              // Pull write Enable HIGH. Tells EEPROM that its a read OP
+    delayMicroseconds(1);
+    digitalWrite(WRITE_ENABLE, HIGH); // Pull write Enable HIGH. Tells EEPROM that its a read OP
     // ORDER: D5=LSB, ..., D12=MSB
     char data = 0x00; // Define char to store data into
-    for (int dparallel : IOBusMSBFirst)
+    for (int i = 0; i < IOBusSize; i++)
     {
+        int dparallel = IOBusMSBFirst[i];
         // Show DATA
         data = (data << 1) + digitalRead(dparallel); // Shift data from IO Bus into char
     }
@@ -139,16 +142,18 @@ void EEPROM::writeEEPROM(short address, byte data)
 {
     setAddress(address, /* output Enable */ false); // Latch adress into adress register, out Enable = false
     // Write Out Data
-    for (int dparallel : IOBusMSBFirst)
-    { // Write Data to IO Bus one bit at a time, starting with MSB
+    for (int i = 0; i < IOBusSize; i++)
+    {
+        int dparallel = IOBusMSBFirst[i];
+        // Write Data to IO Bus one bit at a time, starting with MSB
         digitalWrite(dparallel, data & 0x80);
         data = data << 1;
     }
-
     digitalWrite(WRITE_ENABLE, LOW);  // Pulse write Enable LOW to initiate a Write OP on the EEPROM
+    // Optional: __asm__("nop\n\t""nop\n\t""nop\n\t""nop\n\t"); (16x nop)
     delayMicroseconds(1);             // Give the EEPROM some time to process
     digitalWrite(WRITE_ENABLE, HIGH); // Restore previous state
-    delayMicroseconds(2);             // Break from other OPs (to be modified)
+    delay(8);                        // Break from other OPs (to be modified)
 }
 
 void EEPROM::eraseEEPROM()
@@ -156,36 +161,31 @@ void EEPROM::eraseEEPROM()
     eraseEEPROM(0xff);
 }
 
-void EEPROM::eraseEEPROM(byte data)
+void EEPROM::eraseEEPROM(const byte data)
 {
     outputModeBus();
 
-    for (int i = 0; i < 4; i++)
+    for (unsigned int i = 0; i < (unsigned int)32768; i++)
     {
-        for (int base = 0; base < 8192; base += 16)
-        {
-            for (int offset = 0; offset < 16; offset += 1)
-            {
-                int addr = (8192 * i) + base + offset;
-                writeEEPROM(addr, data); // Actually write the data.
-                if (addr > (int)0x7FF0)
-                {
-                    Serial.print(addr, HEX);
-                    Serial.print(" ");
-                }
-            }
+        int addr = i;            //(8192 * i) + base + offset;
+        writeEEPROM(addr, data); // Actually write the data.
 
-            // Some fancy outputting to console.
-            if (base % 512 == 0)
-            {
-                Serial.println();
-                Serial.print("[0x");
-                Serial.print(i * 8192 + base, HEX);
-                Serial.print("]:");
-            }
-            Serial.print(".");
+        if (addr > (int)0x7FF0)
+        {
+            Serial.print(addr, HEX);
+            Serial.print(" ");
         }
-    }
+
+        // Some fancy outputting to console.
+        if (/*base*/ i % 512 == 0)
+        {
+            Serial.println();
+            Serial.print("[0x");
+            Serial.print(i, HEX); //* 8192 + base, HEX);
+            Serial.print("]:");
+        }
+    } //Serial.print(".");
+
     Serial.println("flash erased.");
-    Serial.println("end");
+    //Serial.println("e");
 }
