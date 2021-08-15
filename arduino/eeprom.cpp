@@ -2,7 +2,7 @@
 #include "defines.h"
 #include "helper_methods.h"
 
-const int EEPROM::IOBusSize = 8;
+/*const int EEPROM::IOBusSize = 8;
 const int EEPROM::IOBusMSBFirst[EEPROM::IOBusSize] = {12, 11, 10, 9, 8, 7, 6, 5};
 
 EEPROM::EEPROM()
@@ -39,6 +39,7 @@ void EEPROM::outputModeBus()
 /**
  * Method to print out the entire data storage of the EEPROM
  */
+/*
 void EEPROM::printContent()
 {
     inputModeBus();
@@ -62,7 +63,7 @@ void EEPROM::printContent()
                 {
                     failedVerification = true;
                 }*/
-            }
+           /* }
 
             // Comparing
             if (!array_cmp(data, previous_data_cache, 16, 16))
@@ -104,17 +105,17 @@ void EEPROM::printContent()
         Serial.print("VERIFY:");
         Serial.println(failedVerification ? "fail" : "success");
     }*/
-    digitalWrite(CHIP_ENABLE, HIGH);
+ /*   digitalWrite(CHIP_ENABLE, HIGH);
     Serial.println("e");
 }
 
 /**
  * CURRENTLY BROKEN!!!
- */ 
+ */ /*
 char EEPROM::readEEPROM(short address)
 {
     digitalWrite(WRITE_ENABLE, HIGH); // Pull write Enable HIGH. Tells EEPROM that its a read OP
-    setAddress(address, /* output Enable */ true); // Latch adress into adress register, output Enable = true
+    setAddress(address, /* output Enable * true); // Latch adress into adress register, output Enable = true
     digitalWrite(OUTPUT_ENABLE, LOW);
     delayMicroseconds(1);
     
@@ -133,7 +134,7 @@ char EEPROM::readEEPROM(short address)
 /**
  * Shift out adress into shift register, than latch it to overwrite current data
  * Part of basic functions
- */
+ *
 void EEPROM::setAddress(short address, bool output_enable)
 {
     // Shift adress to Shift Registers as follows:
@@ -149,7 +150,7 @@ void EEPROM::setAddress(short address, bool output_enable)
 
 void EEPROM::writeEEPROM(short address, byte data)
 {
-    setAddress(address, /* output Enable */ false); // Latch adress into adress register, out Enable = false
+    setAddress(address, /* output Enable *false); // Latch adress into adress register, out Enable = false
     
     // Write Out Data
     for (int i = 0; i < IOBusSize; i++)
@@ -187,7 +188,7 @@ void EEPROM::eraseEEPROM(const byte data)
         }
 
         // Some fancy outputting to console.
-        if (/*base*/ i % 512 == 0)
+        if (/*base* i % 512 == 0)
         {
             Serial.println();
             Serial.print("[0x");
@@ -199,3 +200,4 @@ void EEPROM::eraseEEPROM(const byte data)
     Serial.println("flash erased.");
     //Serial.println("e");
 }
+*/
