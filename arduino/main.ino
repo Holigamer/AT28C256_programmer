@@ -67,6 +67,9 @@ void writeTimedProperly(short addrOnPage, byte data)
     // ByteLoadCycleTime 150µs (max)
 }
 
+// Comment in to show times of single pagewrites.
+// #define DEBUG_WRITEPAGE
+
 void writePage(short pageStartAddr, byte value)
 {
     // Check if page is correct.
@@ -97,8 +100,10 @@ void writePage(short pageStartAddr, byte value)
 
     byte content = 0x00; // Define char to store data into
     setAddr(pageStartAddr + 63);
+#ifdef DEBUG_WRITEPAGE
     Serial.println("Polling DATA");
     unsigned long timeStart = micros();
+#endif
     do
     {
 
@@ -118,8 +123,13 @@ void writePage(short pageStartAddr, byte value)
 
     } while (content != value);
 
+#ifdef DEBUG_WRITEPAGE
     unsigned long timeNow = micros();
+#endif
+
     digitalWrite(CHIP_ENABLE, HIGH);
+
+#ifdef DEBUG_WRITEPAGE
 
     Serial.print("Stored Byte: ");
     Serial.println(content, HEX);
@@ -129,6 +139,7 @@ void writePage(short pageStartAddr, byte value)
     Serial.print(" (by polling): ");
     Serial.print(timeNow - timeStart);
     Serial.println("µs");
+#endif
 }
 
 byte readByte(short addr)
@@ -245,8 +256,14 @@ void loop()
             {
                 Serial.print("Page: ");
                 Serial.println(i);
-                
+
+                unsigned long startTime = micros();
                 writePage(i, B00001111); // Debug pattern.
+                unsigned long endTime = micros();
+
+                Serial.print("The full page write of EEPROM took: ");
+                Serial.print(endTime - startTime);
+                Serial.println("µs.");
             }
 
             // Page write test.
