@@ -13,10 +13,12 @@ void setup()
     {
         pinMode(i, OUTPUT);
     }
-    for (int i = ADDR_0; i <= ADDR_14; i++)
-    {
-        pinMode(i, OUTPUT);
-    }
+
+    // Address latch
+    pinMode(LATCH_APPLY, OUTPUT);
+    pinMode(LATCH_CLOCK, OUTPUT);
+    pinMode(LATCH_DATA, OUTPUT);
+
     digitalWrite(OUTPUT_ENABLE, LOW);
     digitalWrite(CHIP_ENABLE, HIGH);
     digitalWrite(WRITE_ENABLE, HIGH);
@@ -30,11 +32,23 @@ void setup()
 
 void setAddr(short addr)
 {
-    for (int i = ADDR_0; i <= ADDR_14; i++)
+    // Shift adress to Shift Registers as follows:
+    // <WE, MSB, A13, A12, A11, ..., A1, LSB>
+    shiftOut(LATCH_DATA, LATCH_CLOCK, MSBFIRST, (addr >> 8)); // Shift first 8 bits into MSB register
+
+    shiftOut(LATCH_DATA, LATCH_CLOCK, MSBFIRST, addr); // Shift last 8 bits into LSB register
+
+    digitalWrite(LATCH_APPLY, LOW); // Latch adress into Storage Register
+    digitalWrite(LATCH_APPLY, HIGH);
+    digitalWrite(LATCH_APPLY, LOW);
+
+    delayMicroseconds(50); // slow down next op (let the address stabilize)
+    //OLD
+    /* for (int i = ADDR_0; i <= ADDR_14; i++)
     {
         digitalWrite(i, addr & 0x0001);
         addr = addr >> 1;
-    }
+    }*/
 }
 
 void writeTimedProperly(short addrOnPage, byte data)
@@ -67,9 +81,8 @@ void writeTimedProperly(short addrOnPage, byte data)
     // ByteLoadCycleTime 150µs (max)
 }
 
-// Comment in to show times of single pagewrites.
-// #define DEBUG_WRITEPAGE
-
+// Comment in to show polling time of pagewrite.
+ #define DEBUG_WRITEPAGE
 void writePage(short pageStartAddr, byte value)
 {
     // Check if page is correct.

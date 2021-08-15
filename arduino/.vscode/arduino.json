@@ -1,8 +1,8 @@
 {
-    "configuration": "cpu=atmega2560",
-    "board": "arduino:avr:mega",
+    "configuration": "cpu=atmega328old",
+    "board": "arduino:avr:nano",
     "programmer": "arduino:avrispmkii",
     "output": "build",
-    "port": "COM7",
+    "port": "COM6",
     "sketch": "main.ino"
 }
