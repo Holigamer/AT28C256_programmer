@@ -43,6 +43,8 @@ void EEPROM::printContent()
 {
     inputModeBus();
 
+    digitalWrite(CHIP_ENABLE, LOW);
+
     bool failedVerification = false;
 
     byte previous_data_cache[16] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -102,14 +104,20 @@ void EEPROM::printContent()
         Serial.print("VERIFY:");
         Serial.println(failedVerification ? "fail" : "success");
     }*/
+    digitalWrite(CHIP_ENABLE, HIGH);
     Serial.println("e");
 }
 
+/**
+ * CURRENTLY BROKEN!!!
+ */ 
 char EEPROM::readEEPROM(short address)
 {
-    setAddress(address, /* output Enable */ true); // Latch adress into adress register, output Enable = true
-    delayMicroseconds(1);
     digitalWrite(WRITE_ENABLE, HIGH); // Pull write Enable HIGH. Tells EEPROM that its a read OP
+    setAddress(address, /* output Enable */ true); // Latch adress into adress register, output Enable = true
+    digitalWrite(OUTPUT_ENABLE, LOW);
+    delayMicroseconds(1);
+    
     // ORDER: D5=LSB, ..., D12=MSB
     char data = 0x00; // Define char to store data into
     for (int i = 0; i < IOBusSize; i++)
@@ -118,6 +126,7 @@ char EEPROM::readEEPROM(short address)
         // Show DATA
         data = (data << 1) + digitalRead(dparallel); // Shift data from IO Bus into char
     }
+    digitalWrite(OUTPUT_ENABLE, HIGH);
     return data;
 }
 
@@ -130,7 +139,7 @@ void EEPROM::setAddress(short address, bool output_enable)
     // Shift adress to Shift Registers as follows:
     // <WE, MSB, A13, A12, A11, ..., A1, LSB>
     shiftOut(DATASERIAL, SHCP, MSBFIRST, (address >> 8) // Shift first 8 bits into MSB register (BIT Q7 being the OE Pin of EEPROM active LOW)
-                                             | (output_enable ? 0x00 : 0x80));
+                                             );//| (output_enable ? 0x00 : 0x80));
     shiftOut(DATASERIAL, SHCP, MSBFIRST, address); // Shift last 8 bits into LSB register
 
     digitalWrite(STCP, LOW); // Latch adress into Storage Register
@@ -141,6 +150,7 @@ void EEPROM::setAddress(short address, bool output_enable)
 void EEPROM::writeEEPROM(short address, byte data)
 {
     setAddress(address, /* output Enable */ false); // Latch adress into adress register, out Enable = false
+    
     // Write Out Data
     for (int i = 0; i < IOBusSize; i++)
     {

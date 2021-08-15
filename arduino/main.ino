@@ -7,12 +7,21 @@ void setup()
 {
 
     eeprom = EEPROM();
+
+    pinMode(OUTPUT_ENABLE, OUTPUT);
+    pinMode(CHIP_ENABLE, OUTPUT);
+
+    digitalWrite(OUTPUT_ENABLE, LOW);
+    digitalWrite(CHIP_ENABLE, HIGH);
     Serial.begin(115200);
 }
 
 void writeTimedProperly(short addrOnPage, byte data)
 {
     eeprom.setAddress(addrOnPage, false);
+
+    // CHIPENABLED
+    digitalWrite(CHIP_ENABLE, LOW);
     // Time between Address valid and WE:  (at least 0 ns)
 
     // Write Out Data
@@ -30,10 +39,13 @@ void writeTimedProperly(short addrOnPage, byte data)
     __asm__("nop\n\t"
             "nop\n\t"); // 125ns delay
     digitalWrite(WRITE_ENABLE, HIGH);
+    
     __asm__("nop\n\t"
             "nop\n\t"); // 125ns delay
     // Write Pulse Width High: 50ns (min)
     // ByteLoadCycleTime 150µs (max)
+    // CHIPENABLED
+    digitalWrite(CHIP_ENABLE, HIGH);
 }
 
 void loop()
@@ -46,45 +58,51 @@ void loop()
         if (data == 't')
         {
             eeprom.outputModeBus();
-            for (unsigned int i = 0; i < 64; i++)
+            digitalWrite(OUTPUT_ENABLE, HIGH);
+            for (unsigned int i = 128; i < 192; i++)
             {
                 // Write to page
                 writeTimedProperly(i, B00001111);
                 // Already 125ns delayed. Continue straight up
             }
 
+            digitalWrite(OUTPUT_ENABLE, LOW);
+
             // Poll the data..
             eeprom.inputModeBus();
             digitalWrite(WRITE_ENABLE, HIGH);
             char data = 0x00; // Define char to store data into
-            unsigned long timeStart =  micros();
+            eeprom.setAddress(191, true);
+            digitalWrite(CHIP_ENABLE, LOW);
+            unsigned long timeStart = micros();
             do
             {
-                eeprom.setAddress(63, true);
-                eeprom.setAddress(63, false);
-                eeprom.setAddress(63, true);
-                
+
+                digitalWrite(OUTPUT_ENABLE, LOW);
+                __asm__("nop\n\t"); // 62.5ns delay
                 for (int i = 0; i < EEPROM::IOBusSize; i++)
                 {
                     int dparallel = EEPROM::IOBusMSBFirst[i];
                     // Show DATA
                     data = (data << 1) + digitalRead(dparallel); // Shift data from IO Bus into char
                 }
-            } while (data==B11110000);
+
+                digitalWrite(OUTPUT_ENABLE, HIGH);
+            } while (data == B11110000);
 
             unsigned long timeNow = micros();
 
-            Serial.print("Time for save action (by polling): ");
-            Serial.print(timeNow-timeStart);
-            Serial.println("ns");
+            digitalWrite(CHIP_ENABLE, HIGH);
 
+            Serial.print("Time for save action (by polling): ");
+            Serial.print(timeNow - timeStart);
+            Serial.println("µs");
 
             // Page write test.
             // Write 64 bytes of data.
             // (Max 150µS between byte)
             // Poll the DATA bus with last byte to check for free memory
         }
-        
 
         if (data == 'p')
         {
@@ -115,8 +133,11 @@ void loop()
 
             uint16_t addr = (addressArray[0] << 8) | addressArray[1];
 
+            digitalWrite(CHIP_ENABLE, LOW);
+
             byte value = eeprom.readEEPROM(addr);
 
+            digitalWrite(CHIP_ENABLE, HIGH);
             Serial.print("Value @ 0x");
             Serial.print(addr, HEX);
             Serial.print(": 0x");
