@@ -325,17 +325,23 @@ void loop()
 
             for (i = 0; i < 16; i++)
             {
+                // One operation takes about 18 µs give or take.
                 // Because the first bit is now 16 bits, do a compare with 32768 or 1000 0000 0000 0000 or 0x8000
-                digitalWrite(LATCH_DATA, (addr & 0x8000) != 0);
+
+                // Data PD2     Bxxxxx1xx
+                // Clock PD3    Bxxxx1xxx
+                // Latch PD4    Bxxx1xxxx
+                digitalWrite(LATCH_DATA, (addr & 0x8000)); // digiWrite takes about 3.40 µs according to roboticsbackend
+
                 addr <<= 1;
-
-                digitalWrite(LATCH_CLOCK, HIGH);
-                digitalWrite(LATCH_CLOCK, LOW);
+                // Clock pin is: Bxxxx1xxx
+                PORTD = PORTD | B00001000; // Should only take 0.26 µs according to roboticsbackend
+                                           // digitalWrite(LATCH_CLOCK, LOW);
+                PORTD = PORTD & B11110111;
             }
-
             unsigned long timeEnd = micros();
 
-            Serial.print("Custom 1: Address set took: ");
+            Serial.print("Custom 3: Address set took: ");
             Serial.print(timeEnd - timeStart);
             Serial.println("µs.");
             for (int i = DATA_0; i <= DATA_7; i++)

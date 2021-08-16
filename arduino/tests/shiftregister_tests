@@ -1,3 +1,6 @@
+Mesurement flaws: arduino micros() function has only resolution of 4µs.. So changes can only be approximated.
+
+
 Mesurement 1: entire writeTimedProperly(...) function
 
 test writeTimedProperly
@@ -45,3 +48,22 @@ wtest writeTimedProperly
 Custom 1: Address set took: 304µs.
 
 ==> Basically no difference to two shiftOuts()
+
+Codesample 2: eliminate != 0 check. Data is still valid. 
+=> no difference or 4µs less..
+=> each loop exec takes about 18µs. from where?
+
+Codesample 3:
+firstly: mesure digitalWrite and lsl
+digitalWrite: between 4 and 8 µs (probably around 5-6) https://roboticsbackend.com/arduino-fast-digitalwrite/: 3.4µs
+lsl: between 0 and 4 µs (probably around 0-1)
+==> do digitalWrite on a lower level. (with ports)
+
+Idea: Directly write to PORTD (https://roboticsbackend.com/arduino-fast-digitalwrite/)
+
+test writeTimedProperly
+Custom 3: Address set took: 92µs.
+w
+
+==> Eliminating the clock digi writes takes away a lot of overhead.
+==> 212µs saved. Still about 42µs too slow.
