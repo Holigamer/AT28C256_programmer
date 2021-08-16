@@ -1,0 +1,47 @@
+Mesurement 1: entire writeTimedProperly(...) function
+
+test writeTimedProperly
+Write took: 384µs.
+value: 7F
+w
+
+==> One Write op takes: 384µs.. There is way too much overhead. Maximum write time allowed to be in page write is 150µs, before it fails.
+==> The overhead has to be trimmed down. Probably the shiftOut function takes to much time
+
+Mesurement 2: setAddr(...) function
+
+test writeTimedProperly
+Address set took: 316µs.
+w
+
+==> Yes. Overhead comes from the setAddr(...) function. Because nops are very fast and digitalWrite is probably also, directly checking time of two, then one shiftOut 
+
+Mesurement 3: both shiftOut() functions
+
+test writeTimedProperly
+Address set took: 304µs.
+w
+
+Mesurement 4: one shiftOut() function:
+test writeTimedProperly
+Address set took: 152µs.
+w
+
+==> As thought, the shiftOut functions provide most of the overhead. About 10µs are taken for nops and digitalWrite.
+==> One shiftOut is already longer, than the threshold for a page write stop.
+==> Solution: write custom shift out code, thats faster.
+==> Theroretical limit: 
+    - The registers are fast enough, to accept a new bit in each clock cycle.
+    - 16 bis + 1 latch signal + 2nops for the data to stabilize => 19*62.5ns = 1.187µs...
+    ==> So there should be plenty of time to shift the data under 50µs.
+    - Rest of the codes overhead would be (as mesured): 80µs
+    - 80µs + 50µs = 130µs 
+    - so 20µs of wiggle room is plenty.
+
+
+Codesample 1: basically both shiftOut but directly in code and also trimmed the MSBFIRST check away.
+
+wtest writeTimedProperly
+Custom 1: Address set took: 304µs.
+
+==> Basically no difference to two shiftOuts()
