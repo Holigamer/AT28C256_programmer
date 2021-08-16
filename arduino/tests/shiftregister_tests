@@ -93,3 +93,24 @@ Custom 5: Address set took: 14944µs.
 w
 
 => One setAddr(...) takes only 14.9µs
+
+
+Mesurement 5: writeTimedProperly() with new setAddr(...) function
+
+test writeTimedProperly
+Custom 6: writeTimedProperly x1000 took: 71344µs.
+w
+
+==> This means the new writeTimedProperly takes 71.3µs per operation.
+=> It can be optimized but that is already pretty fast.
+
+Custom 6: optimize all digitalWrites in writeTimedProperly
+... changed write_enable pinshifts but not the data write, because that works with two ports.
+
+FINAL RESULT:
+
+test writeTimedProperly
+Custom 6: writeTimedProperly x1000 took: 62540µs.
+w
+
+==> One writeTimedProperly takes about 62.5µs. Thats almost 1/3 of the eeproms maximum for a page write. So the rest of the code should work perfectly now.

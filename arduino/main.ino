@@ -52,13 +52,11 @@ void setAddr(unsigned short addr)
 
         if ((addr & 0x8000) == 0)
         {
-            // Output low
-            PORTD = PORTD & ~B00000100;
+            PORTD = PORTD & ~B00000100; // LOW
         }
         else
         {
-            // output high
-            PORTD = PORTD | B00000100;
+            PORTD = PORTD | B00000100; // HIGH
         }
 
         addr <<= 1;
@@ -71,8 +69,8 @@ void setAddr(unsigned short addr)
     asm("nop\n\t"); // 62.5ns
 
     // Latch pin is:   Bxxx1xxxx
-    PORTD = PORTD | B00010000; // HIGH
-    asm("nop\n\t");            // Hold apply (RCLK) for longer
+    PORTD = PORTD | B00010000;  // HIGH
+    asm("nop\n\t");             // Hold apply (RCLK) for longer
     PORTD = PORTD & ~B00010000; // LOW
 
     // tpd = c.a. max 50ns @4.5V for 74hc595 (p.8)
@@ -89,28 +87,30 @@ void writeTimedProperly(short addrOnPage, byte data)
     for (int i = DATA_7; i >= DATA_0; i--) // MSB first..
     {
         // Write Data to IO Bus one bit at a time, starting with MSB
+        // @For now not optimized, because working with two diffrent ports.
         digitalWrite(i, (data & B10000000) != 0); // MSB
         data = data << 1;                         // Shift one to left. 1100 becomes 1000
     }
 
-    digitalWrite(WRITE_ENABLE, LOW);
+    // Write enable @ PB5: Bxx1xxxxx
+    PORTB = PORTB & ~B00100000; // LOW
+
     // Write Pulse Width: 100ns
-    // Each nop: 62.5ns
     asm("nop\n\t"
         "nop\n\t"
         "nop\n\t"); // 187.5ns delay
-    //delayMicroseconds(1);
-    digitalWrite(WRITE_ENABLE, HIGH);
+
+    PORTB = PORTB | B00100000; // HIGH
 
     asm("nop\n\t"
         "nop\n\t"
-        "nop\n\t"); // 187.5ns delay*/
+        "nop\n\t"); // 187.5ns delay
     // Write Pulse Width High: 50ns (min)
     // ByteLoadCycleTime 150µs (max)
 }
 
 // Comment in to show polling time of pagewrite.
-#define DEBUG_WRITEPAGE
+//#define DEBUG_WRITEPAGE
 void writePage(short pageStartAddr, byte value)
 {
     // Check if page is correct.
@@ -151,7 +151,7 @@ void writePage(short pageStartAddr, byte value)
     {
 
         digitalWrite(OUTPUT_ENABLE, LOW);
-
+        delayMicroseconds(1);
         content = 0x00;
         for (int i = DATA_7; i >= DATA_0; i--)
         {
@@ -162,19 +162,9 @@ void writePage(short pageStartAddr, byte value)
         digitalWrite(OUTPUT_ENABLE, HIGH);
         // Polling has normal Read Waveform Delay => CE is selected, OE is switching, so 70-100ns delay required.
         // Maybe up to 350ns.. depending on chip and which time is valid.. (Datasheet p.11)
-        asm("nop\n\t"
-            "nop\n\t"
-            "nop\n\t"
-            "nop\n\t"
-            "nop\n\t"
-            "nop\n\t"
-            "nop\n\t"
-            "nop\n\t");       // 500ns delay
-                              // WHY?????????????? WHEN REMOVED.. THIS DOESNT WORK!!! :/ OR HANGS UP SOMETIMES..
-                              // DEBUGGING DOES NOT DO IT, BECAUSE AS SOON A Serial.println(content, HEX) IS ADDED, THE DELAY IS TO BIG AND THE CODE WORKS!
-        delayMicroseconds(1); // 1000ns delay.
+        delayMicroseconds(2); // 2000ns delay.
 #ifdef DEBUG_WRITEPAGE
-        Serial.println(content, HEX);
+        //Serial.println(content, HEX);
 #endif
 
     } while (content != value);
@@ -314,7 +304,7 @@ void loop()
                 Serial.println(i);
 
                 unsigned long startTime = micros();
-                writePage(i, B11110000); // Debug pattern. 5C
+                writePage(i, B00101111); // Debug pattern. 5C
                 unsigned long endTime = micros();
 
                 Serial.print("The full page write of EEPROM took: ");
@@ -343,14 +333,15 @@ void loop()
             unsigned long timeStart = micros();
 
             // Put the code to time in here..
-            //shiftOut(LATCH_DATA, LATCH_CLOCK, MSBFIRST, (addr >> 8)); // Shift first 8 bits into MSB register
+
             for (int i = 0; i < 1000; i++)
-                setAddr(addr);
+                writeTimedProperly(addr, B00001111);
             unsigned long timeEnd = micros();
 
-            Serial.print("Custom 5: Address set took: ");
+            Serial.print("Custom 6: writeTimedProperly x1000 took: ");
             Serial.print(timeEnd - timeStart);
             Serial.println("µs.");
+
             for (int i = DATA_0; i <= DATA_7; i++)
             {
                 pinMode(i, INPUT);
