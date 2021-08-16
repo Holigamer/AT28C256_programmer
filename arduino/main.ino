@@ -331,17 +331,28 @@ void loop()
                 // Data PD2     Bxxxxx1xx
                 // Clock PD3    Bxxxx1xxx
                 // Latch PD4    Bxxx1xxxx
-                digitalWrite(LATCH_DATA, (addr & 0x8000)); // digiWrite takes about 3.40 µs according to roboticsbackend
+                // digitalWrite(LATCH_DATA, (addr & 0x8000)); // digiWrite takes about 3.40 µs according to roboticsbackend
+
+                if ((addr & 0x8000) == 0)
+                {
+                    // Output low
+                    PORTD = PORTD & ~B00000100;
+                }
+                else
+                {
+                    // output high
+                    PORTD = PORTD | B00000100;
+                }
 
                 addr <<= 1;
                 // Clock pin is: Bxxxx1xxx
                 PORTD = PORTD | B00001000; // Should only take 0.26 µs according to roboticsbackend
-                                           // digitalWrite(LATCH_CLOCK, LOW);
-                PORTD = PORTD & B11110111;
+                // digitalWrite(LATCH_CLOCK, LOW);
+                PORTD = PORTD & ~B00001000; // And with ones complemet of value
             }
             unsigned long timeEnd = micros();
 
-            Serial.print("Custom 3: Address set took: ");
+            Serial.print("Custom 4: Address set took: ");
             Serial.print(timeEnd - timeStart);
             Serial.println("µs.");
             for (int i = DATA_0; i <= DATA_7; i++)

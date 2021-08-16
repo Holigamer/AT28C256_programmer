@@ -67,3 +67,12 @@ w
 
 ==> Eliminating the clock digi writes takes away a lot of overhead.
 ==> 212µs saved. Still about 42µs too slow.
+
+Codesample 4: 
+the last digitalWrite..
+
+wtest writeTimedProperly
+Custom 4: Address set took: 16µs.
+
+==> yeay. 16µs is definitly under my set mark of 50µs. Multiple tests show repeatable results.
+
