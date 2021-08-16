@@ -43,26 +43,25 @@ void writeTimedProperly(short addrOnPage, byte data)
     // Time between Address valid and WE:  (at least 0 ns)
     setAddr(addrOnPage);
     // Write Out Data
-    for (int i = DATA_0; i <= DATA_7; i++)
+    for (int i = DATA_7; i >= DATA_0; i--) // MSB first..
     {
         // Write Data to IO Bus one bit at a time, starting with MSB
-        digitalWrite(i, data & 0x01);
-        data = data >> 1;
+        digitalWrite(i, data & B10000000); // MSB
+        data = data << 1; // Shift one to left. 1100 becomes 1000
     }
 
     digitalWrite(WRITE_ENABLE, LOW);
     // Write Pulse Width: 100ns
     // Each nop: 62.5ns
-    /*__asm__("nop\n\t"
+    asm("nop\n\t"
             "nop\n\t"
-            "nop\n\t"); // 187.5ns delay*/
-    delayMicroseconds(1);
+            "nop\n\t"); // 187.5ns delay
+    //delayMicroseconds(1);
     digitalWrite(WRITE_ENABLE, HIGH);
 
-    /*__asm__("nop\n\t"
+    asm("nop\n\t"
             "nop\n\t"
             "nop\n\t"); // 187.5ns delay*/
-    delayMicroseconds(50);
     // Write Pulse Width High: 50ns (min)
     // ByteLoadCycleTime 150µs (max)
 }
@@ -118,8 +117,21 @@ void writePage(short pageStartAddr, byte value)
 
         digitalWrite(OUTPUT_ENABLE, HIGH);
         // Polling has normal Read Waveform Delay => CE is selected, OE is switching, so 70-100ns delay required.
-        __asm__("nop\n\t"
-                "nop\n\t"); // 125ns delay
+        // Maybe up to 350ns.. depending on chip and which time is valid.. (Datasheet p.11)
+        asm("nop\n\t"
+                "nop\n\t"
+                "nop\n\t"
+                "nop\n\t"
+                "nop\n\t"
+                "nop\n\t"
+                "nop\n\t"
+                "nop\n\t"); // 500ns delay
+                // WHY?????????????? WHEN REMOVED.. THIS DOESNT WORK!!! :/ OR HANGS UP SOMETIMES..
+                // DEBUGGING DOES NOT DO IT, BECAUSE AS SOON A Serial.println(content, HEX) IS ADDED, THE DELAY IS TO BIG AND THE CODE WORKS! 
+        delayMicroseconds(1); // 1000ns delay.
+#ifdef DEBUG_WRITEPAGE
+        Serial.println(content, HEX);
+#endif
 
     } while (content != value);
 
@@ -258,7 +270,7 @@ void loop()
                 Serial.println(i);
 
                 unsigned long startTime = micros();
-                writePage(i, B00001111); // Debug pattern.
+                writePage(i, B01011100); // Debug pattern.
                 unsigned long endTime = micros();
 
                 Serial.print("The full page write of EEPROM took: ");
