@@ -76,3 +76,20 @@ Custom 4: Address set took: 16µs.
 
 ==> yeay. 16µs is definitly under my set mark of 50µs. Multiple tests show repeatable results.
 
+Mesurement: Changed mesureing method from single shot to 1000 executions to correct for puny resolution of micros();
+
+Codesample 5: Implement all changes into setAddr and after that into writeTimedProperly function.
+
+test writeTimedProperly
+Custom 5: Address set took: 23744µs.
+w
+
+=> adding changes from Codesample 4 decreases the time to 23.7µs per operation
+
+Change Latch to also be a direct port manipulation
+
+test writeTimedProperly
+Custom 5: Address set took: 14944µs.
+w
+
+=> One setAddr(...) takes only 14.9µs

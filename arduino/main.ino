@@ -30,30 +30,54 @@ void setup()
     Serial.begin(115200);
 }
 
-void setAddr(short addr)
+/**
+ * Set addr on EEPROM.
+ * Important: The shift out will output any address unil max size of unsigned short (63k) but eeprom has only 15 bits (max 32767) connected.
+ */
+void setAddr(unsigned short addr)
 {
     // Shift adress to Shift Registers as follows:
-    // <WE, MSB, A13, A12, A11, ..., A1, LSB>
-    shiftOut(LATCH_DATA, LATCH_CLOCK, MSBFIRST, (addr >> 8)); // Shift first 8 bits into MSB register
+    // <MSB, A13, A12, A11, ..., A1, LSB>
+    uint8_t i;
 
-    shiftOut(LATCH_DATA, LATCH_CLOCK, MSBFIRST, addr); // Shift last 8 bits into LSB register
+    for (i = 0; i < 16; i++)
+    {
+        // One operation takes about 18 µs give or take.
+        // Because the first bit is now 16 bits, do a compare with 32768 or 1000 0000 0000 0000 or 0x8000
+
+        // Data PD2     Bxxxxx1xx
+        // Clock PD3    Bxxxx1xxx
+        // Latch PD4    Bxxx1xxxx
+        // digitalWrite(LATCH_DATA, (addr & 0x8000)); // digiWrite takes about 3.40 µs according to roboticsbackend
+
+        if ((addr & 0x8000) == 0)
+        {
+            // Output low
+            PORTD = PORTD & ~B00000100;
+        }
+        else
+        {
+            // output high
+            PORTD = PORTD | B00000100;
+        }
+
+        addr <<= 1;
+        // Clock pin is: Bxxxx1xxx
+        PORTD = PORTD | B00001000; // HIGH
+        // Pulse duration should be a min of 20ns @4.5V (p.7) This is the case because the arduino only clocks with 62.5ns
+        PORTD = PORTD & ~B00001000; // LOW
+    }
     // Wait for last shift.
     asm("nop\n\t"); // 62.5ns
 
-    digitalWrite(LATCH_APPLY, HIGH); // Latch adress into Storage Register
-    asm("nop\n\t");                  // Hold apply (RCLK) for longer
-    digitalWrite(LATCH_APPLY, LOW);
+    // Latch pin is:   Bxxx1xxxx
+    PORTD = PORTD | B00010000; // HIGH
+    asm("nop\n\t");            // Hold apply (RCLK) for longer
+    PORTD = PORTD & ~B00010000; // LOW
 
     // tpd = c.a. max 50ns @4.5V for 74hc595 (p.8)
     asm("nop\n\t"
         "nop\n\t"); // Generous 125ns delay.
-
-    //OLD
-    /* for (int i = ADDR_0; i <= ADDR_14; i++)
-    {
-        digitalWrite(i, addr & 0x0001);
-        addr = addr >> 1;
-    }*/
 }
 
 void writeTimedProperly(short addrOnPage, byte data)
@@ -320,39 +344,11 @@ void loop()
 
             // Put the code to time in here..
             //shiftOut(LATCH_DATA, LATCH_CLOCK, MSBFIRST, (addr >> 8)); // Shift first 8 bits into MSB register
-
-            uint8_t i;
-
-            for (i = 0; i < 16; i++)
-            {
-                // One operation takes about 18 µs give or take.
-                // Because the first bit is now 16 bits, do a compare with 32768 or 1000 0000 0000 0000 or 0x8000
-
-                // Data PD2     Bxxxxx1xx
-                // Clock PD3    Bxxxx1xxx
-                // Latch PD4    Bxxx1xxxx
-                // digitalWrite(LATCH_DATA, (addr & 0x8000)); // digiWrite takes about 3.40 µs according to roboticsbackend
-
-                if ((addr & 0x8000) == 0)
-                {
-                    // Output low
-                    PORTD = PORTD & ~B00000100;
-                }
-                else
-                {
-                    // output high
-                    PORTD = PORTD | B00000100;
-                }
-
-                addr <<= 1;
-                // Clock pin is: Bxxxx1xxx
-                PORTD = PORTD | B00001000; // Should only take 0.26 µs according to roboticsbackend
-                // digitalWrite(LATCH_CLOCK, LOW);
-                PORTD = PORTD & ~B00001000; // And with ones complemet of value
-            }
+            for (int i = 0; i < 1000; i++)
+                setAddr(addr);
             unsigned long timeEnd = micros();
 
-            Serial.print("Custom 4: Address set took: ");
+            Serial.print("Custom 5: Address set took: ");
             Serial.print(timeEnd - timeStart);
             Serial.println("µs.");
             for (int i = DATA_0; i <= DATA_7; i++)
