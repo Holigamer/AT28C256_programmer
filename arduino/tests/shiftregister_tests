@@ -1,0 +1,116 @@
+Mesurement flaws: arduino micros() function has only resolution of 4µs.. So changes can only be approximated.
+
+
+Mesurement 1: entire writeTimedProperly(...) function
+
+test writeTimedProperly
+Write took: 384µs.
+value: 7F
+w
+
+==> One Write op takes: 384µs.. There is way too much overhead. Maximum write time allowed to be in page write is 150µs, before it fails.
+==> The overhead has to be trimmed down. Probably the shiftOut function takes to much time
+
+Mesurement 2: setAddr(...) function
+
+test writeTimedProperly
+Address set took: 316µs.
+w
+
+==> Yes. Overhead comes from the setAddr(...) function. Because nops are very fast and digitalWrite is probably also, directly checking time of two, then one shiftOut 
+
+Mesurement 3: both shiftOut() functions
+
+test writeTimedProperly
+Address set took: 304µs.
+w
+
+Mesurement 4: one shiftOut() function:
+test writeTimedProperly
+Address set took: 152µs.
+w
+
+==> As thought, the shiftOut functions provide most of the overhead. About 10µs are taken for nops and digitalWrite.
+==> One shiftOut is already longer, than the threshold for a page write stop.
+==> Solution: write custom shift out code, thats faster.
+==> Theroretical limit: 
+    - The registers are fast enough, to accept a new bit in each clock cycle.
+    - 16 bis + 1 latch signal + 2nops for the data to stabilize => 19*62.5ns = 1.187µs...
+    ==> So there should be plenty of time to shift the data under 50µs.
+    - Rest of the codes overhead would be (as mesured): 80µs
+    - 80µs + 50µs = 130µs 
+    - so 20µs of wiggle room is plenty.
+
+
+Codesample 1: basically both shiftOut but directly in code and also trimmed the MSBFIRST check away.
+
+wtest writeTimedProperly
+Custom 1: Address set took: 304µs.
+
+==> Basically no difference to two shiftOuts()
+
+Codesample 2: eliminate != 0 check. Data is still valid. 
+=> no difference or 4µs less..
+=> each loop exec takes about 18µs. from where?
+
+Codesample 3:
+firstly: mesure digitalWrite and lsl
+digitalWrite: between 4 and 8 µs (probably around 5-6) https://roboticsbackend.com/arduino-fast-digitalwrite/: 3.4µs
+lsl: between 0 and 4 µs (probably around 0-1)
+==> do digitalWrite on a lower level. (with ports)
+
+Idea: Directly write to PORTD (https://roboticsbackend.com/arduino-fast-digitalwrite/)
+
+test writeTimedProperly
+Custom 3: Address set took: 92µs.
+w
+
+==> Eliminating the clock digi writes takes away a lot of overhead.
+==> 212µs saved. Still about 42µs too slow.
+
+Codesample 4: 
+the last digitalWrite..
+
+wtest writeTimedProperly
+Custom 4: Address set took: 16µs.
+
+==> yeay. 16µs is definitly under my set mark of 50µs. Multiple tests show repeatable results.
+
+Mesurement: Changed mesureing method from single shot to 1000 executions to correct for puny resolution of micros();
+
+Codesample 5: Implement all changes into setAddr and after that into writeTimedProperly function.
+
+test writeTimedProperly
+Custom 5: Address set took: 23744µs.
+w
+
+=> adding changes from Codesample 4 decreases the time to 23.7µs per operation
+
+Change Latch to also be a direct port manipulation
+
+test writeTimedProperly
+Custom 5: Address set took: 14944µs.
+w
+
+=> One setAddr(...) takes only 14.9µs
+
+
+Mesurement 5: writeTimedProperly() with new setAddr(...) function
+
+test writeTimedProperly
+Custom 6: writeTimedProperly x1000 took: 71344µs.
+w
+
+==> This means the new writeTimedProperly takes 71.3µs per operation.
+=> It can be optimized but that is already pretty fast.
+
+Custom 6: optimize all digitalWrites in writeTimedProperly
+... changed write_enable pinshifts but not the data write, because that works with two ports.
+
+FINAL RESULT:
+
+test writeTimedProperly
+Custom 6: writeTimedProperly x1000 took: 62540µs.
+w
+
+==> One writeTimedProperly takes about 62.5µs. Thats almost 1/3 of the eeproms maximum for a page write. So the rest of the code should work perfectly now.

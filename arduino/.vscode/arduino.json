@@ -1,7 +1,7 @@
 {
     "configuration": "cpu=atmega328old",
     "board": "arduino:avr:nano",
-    "programmer": "arduino:avrisp",
+    "programmer": "arduino:avrispmkii",
     "output": "build",
     "port": "COM6",
     "sketch": "main.ino"

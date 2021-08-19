@@ -1,0 +1,27 @@
+Each command Keyword is a char (8bit long word).
+
+Commands are:
+    - p: Print entire content of EEPROM already formatted on Arduino
+        - No Args
+    - e: Erase entire EEPROM with 0xff
+        - No Args
+    - c: Erase entire  EEPROM with custom one byte value
+        - [1byte: value]
+    - w: Write at specific address a specific byte
+        - [2bytes: address, 1byte: data]
+    - f: Flash the entire EEPROM with 64 byte chunks
+        - Commnucation as follows:
+        - (PC): f
+        - (AR): b // how many bytes?
+        - (PC): 2bytes // (unsigned int) sizeof flashed data msb first.
+        - (AR): r // ready for data
+        - (PC): 64bytes // data
+        - (AR): r // ready for next chunk
+        - (PC): 64bytes // data
+        ...
+        - (AR): r // ready for next chunk
+        - (PC): 64bytes // data (last chunk)
+        - (AR): e // END Internal counter reached previously negotiated value.
+        - (AR): 2bytes // Confirm how many bytes have been written.
+
+
