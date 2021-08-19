@@ -1,50 +1,48 @@
 #include "eeprom.h"
 #include "defines.h"
 #include "helper_methods.h"
-
-/*const int EEPROM::IOBusSize = 8;
-const int EEPROM::IOBusMSBFirst[EEPROM::IOBusSize] = {12, 11, 10, 9, 8, 7, 6, 5};
+#include "Arduino.h"
 
 EEPROM::EEPROM()
 {
-    // Setup several pins for the EEPROM.
-    pinMode(DATASERIAL, OUTPUT);
-    pinMode(SHCP, OUTPUT);
-    pinMode(STCP, OUTPUT);
+    outputModeBus();
 
+    // Address latch
+    pinMode(LATCH_APPLY, OUTPUT);
+    pinMode(LATCH_CLOCK, OUTPUT);
+    pinMode(LATCH_DATA, OUTPUT);
+
+    digitalWrite(OUTPUT_ENABLE, LOW);
+    digitalWrite(CHIP_ENABLE, HIGH);
     digitalWrite(WRITE_ENABLE, HIGH);
-    pinMode(WRITE_ENABLE, OUTPUT);
 
-    digitalWrite(SHCP, LOW);
+    pinMode(WRITE_ENABLE, OUTPUT);
+    pinMode(OUTPUT_ENABLE, OUTPUT);
+    pinMode(CHIP_ENABLE, OUTPUT);
 }
 
 void EEPROM::inputModeBus()
 {
-    for (int i = 0; i < IOBusSize; i++)
+    for (int i = DATA_0; i <= DATA_7; i++)
     {
-        int dparallel = IOBusMSBFirst[i]; // Define IO Bus as Input
-        pinMode(dparallel, INPUT);
+        pinMode(i, INPUT);
     }
 }
 
 void EEPROM::outputModeBus()
 {
-    for (int i = 0; i < IOBusSize; i++)
+    for (int i = DATA_0; i <= DATA_7; i++)
     {
-        int dparallel = IOBusMSBFirst[i]; // Define IO Bus as Output
-        pinMode(dparallel, OUTPUT);
+        pinMode(i, OUTPUT);
     }
 }
 
-/**
- * Method to print out the entire data storage of the EEPROM
- */
-/*
 void EEPROM::printContent()
 {
-    inputModeBus();
-
-    digitalWrite(CHIP_ENABLE, LOW);
+    for (int i = DATA_0; i <= DATA_7; i++)
+    {
+        pinMode(i, INPUT);
+    }
 
     bool failedVerification = false;
 
@@ -58,20 +56,31 @@ void EEPROM::printContent()
             byte data[16];
             for (int offset = 0; offset <= 15; offset += 1)
             {
-                data[offset] = readEEPROM((8192 * i) + base + offset);
+                data[offset] = readByte((8192 * i) + base + offset);
                 /* if (verify0xFF && data[offset] != ((char)0xFF))
                 {
                     failedVerification = true;
                 }*/
-           /* }
+            }
 
             // Comparing
             if (!array_cmp(data, previous_data_cache, 16, 16))
             {
-                already_skipped_bytes = false;
+
                 //Serial.println("debug compared unequal");
                 delayMicroseconds(10);
                 char buf[80];
+                // END OF OLD SUM
+                if (already_skipped_bytes) // Check if this is the start condition.
+                {
+                    sprintf(buf, "%04x:  %02x %02x %02x %02x %02x %02x %02x %02x   %02x %02x %02x %02x %02x %02x %02x %02x",
+                            (8192 * i) + base - 16, previous_data_cache[0], previous_data_cache[1], previous_data_cache[2], previous_data_cache[3], previous_data_cache[4], previous_data_cache[5], previous_data_cache[6], previous_data_cache[7],
+                            previous_data_cache[8], previous_data_cache[9], previous_data_cache[10], previous_data_cache[11], previous_data_cache[12], previous_data_cache[13], previous_data_cache[14], previous_data_cache[15]);
+                    Serial.println(buf);
+                }
+
+                already_skipped_bytes = false;
+                // BEGIN OF NEW SUM
                 sprintf(buf, "%04x:  %02x %02x %02x %02x %02x %02x %02x %02x   %02x %02x %02x %02x %02x %02x %02x %02x",
                         (8192 * i) + base, data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
                         data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
@@ -105,99 +114,201 @@ void EEPROM::printContent()
         Serial.print("VERIFY:");
         Serial.println(failedVerification ? "fail" : "success");
     }*/
- /*   digitalWrite(CHIP_ENABLE, HIGH);
     Serial.println("e");
 }
 
-/**
- * CURRENTLY BROKEN!!!
- */ /*
-char EEPROM::readEEPROM(short address)
+byte EEPROM::readByte(unsigned short addr)
 {
     digitalWrite(WRITE_ENABLE, HIGH); // Pull write Enable HIGH. Tells EEPROM that its a read OP
-    setAddress(address, /* output Enable * true); // Latch adress into adress register, output Enable = true
+    setAddress(addr);                 // Latch adress into adress register, output Enable = true
+    digitalWrite(CHIP_ENABLE, LOW);
     digitalWrite(OUTPUT_ENABLE, LOW);
     delayMicroseconds(1);
-    
+
     // ORDER: D5=LSB, ..., D12=MSB
-    char data = 0x00; // Define char to store data into
-    for (int i = 0; i < IOBusSize; i++)
+    byte data = 0x00; // Define char to store data into
+    for (int i = DATA_7; i >= DATA_0; i--)
     {
-        int dparallel = IOBusMSBFirst[i];
-        // Show DATA
-        data = (data << 1) + digitalRead(dparallel); // Shift data from IO Bus into char
+        // Write Data to IO Bus one bit at a time, starting with MSB
+        data = (data << 1) | digitalRead(i); // Shift data from IO Bus into char
     }
     digitalWrite(OUTPUT_ENABLE, HIGH);
+    digitalWrite(CHIP_ENABLE, HIGH);
     return data;
 }
 
-/**
- * Shift out adress into shift register, than latch it to overwrite current data
- * Part of basic functions
- *
-void EEPROM::setAddress(short address, bool output_enable)
+/*
+ * Set addr on EEPROM.
+ * Important: The shift out will output any address unil max size of unsigned short (63k) but eeprom has only 15 bits (max 32767) connected.
+ */
+void EEPROM::setAddress(unsigned short addr)
 {
     // Shift adress to Shift Registers as follows:
-    // <WE, MSB, A13, A12, A11, ..., A1, LSB>
-    shiftOut(DATASERIAL, SHCP, MSBFIRST, (address >> 8) // Shift first 8 bits into MSB register (BIT Q7 being the OE Pin of EEPROM active LOW)
-                                             );//| (output_enable ? 0x00 : 0x80));
-    shiftOut(DATASERIAL, SHCP, MSBFIRST, address); // Shift last 8 bits into LSB register
+    // <MSB, A13, A12, A11, ..., A1, LSB>
+    uint8_t i;
 
-    digitalWrite(STCP, LOW); // Latch adress into Storage Register
-    digitalWrite(STCP, HIGH);
-    digitalWrite(STCP, LOW);
-}
-
-void EEPROM::writeEEPROM(short address, byte data)
-{
-    setAddress(address, /* output Enable *false); // Latch adress into adress register, out Enable = false
-    
-    // Write Out Data
-    for (int i = 0; i < IOBusSize; i++)
+    for (i = 0; i < 16; i++)
     {
-        int dparallel = IOBusMSBFirst[i];
-        // Write Data to IO Bus one bit at a time, starting with MSB
-        digitalWrite(dparallel, data & 0x80);
-        data = data << 1;
+        // One operation takes about 18 µs give or take.
+        // Because the first bit is now 16 bits, do a compare with 32768 or 1000 0000 0000 0000 or 0x8000
+
+        // Data PD2     Bxxxxx1xx
+        // Clock PD3    Bxxxx1xxx
+        // Latch PD4    Bxxx1xxxx
+        // digitalWrite(LATCH_DATA, (addr & 0x8000)); // digiWrite takes about 3.40 µs according to roboticsbackend
+
+        if ((addr & 0x8000) == 0)
+        {
+            PORTD = PORTD & ~B00000100; // LOW
+        }
+        else
+        {
+            PORTD = PORTD | B00000100; // HIGH
+        }
+
+        addr <<= 1;
+        // Clock pin is: Bxxxx1xxx
+        PORTD = PORTD | B00001000; // HIGH
+        // Pulse duration should be a min of 20ns @4.5V (p.7) This is the case because the arduino only clocks with 62.5ns
+        PORTD = PORTD & ~B00001000; // LOW
     }
-    digitalWrite(WRITE_ENABLE, LOW);  // Pulse write Enable LOW to initiate a Write OP on the EEPROM
-    // Optional: __asm__("nop\n\t""nop\n\t""nop\n\t""nop\n\t"); (16x nop)
-    delayMicroseconds(1);             // Give the EEPROM some time to process
-    digitalWrite(WRITE_ENABLE, HIGH); // Restore previous state
-    delay(8);                        // Break from other OPs (to be modified)
+    // Wait for last shift.
+    asm("nop\n\t"); // 62.5ns
+
+    // Latch pin is:   Bxxx1xxxx
+    PORTD = PORTD | B00010000;  // HIGH
+    asm("nop\n\t");             // Hold apply (RCLK) for longer
+    PORTD = PORTD & ~B00010000; // LOW
+
+    // tpd = c.a. max 50ns @4.5V for 74hc595 (p.8)
+    asm("nop\n\t"
+        "nop\n\t"); // Generous 125ns delay.
 }
 
-void EEPROM::eraseEEPROM()
+void EEPROM::writeByteTimedProperly(unsigned short addrOnPage, byte data)
 {
-    eraseEEPROM(0xff);
+
+    // Time between Address valid and WE:  (at least 0 ns)
+    setAddress(addrOnPage);
+    // Write Out Data
+    for (int i = DATA_7; i >= DATA_0; i--) // MSB first..
+    {
+        // Write Data to IO Bus one bit at a time, starting with MSB
+        // @For now not optimized, because working with two diffrent ports.
+        digitalWrite(i, (data & B10000000) != 0); // MSB
+        data = data << 1;                         // Shift one to left. 1100 becomes 1000
+    }
+
+    // Write enable @ PB5: Bxx1xxxxx
+    PORTB = PORTB & ~B00100000; // LOW
+
+    // Write Pulse Width: min 100ns
+    asm("nop\n\t"
+        "nop\n\t"
+        "nop\n\t"); // 187.5ns delay
+
+    PORTB = PORTB | B00100000; // HIGH
+
+    asm("nop\n\t"
+        "nop\n\t"
+        "nop\n\t"); // 187.5ns delay
+    // Write Pulse Width High: 50ns (min)
+    // ByteLoadCycleTime 150µs (max)
+}
+
+// Comment in to show polling time of pagewrite.
+//#define DEBUG_WRITEPAGE
+void EEPROM::writePage(unsigned short pageStartAddr, byte value[64])
+{
+    // Check if page is correct.
+    if (pageStartAddr % 64 != 0)
+    {
+        Serial.println("Wrong startpoint. Must be divisible by 64!");
+        return;
+    }
+
+    digitalWrite(OUTPUT_ENABLE, HIGH);
+    digitalWrite(CHIP_ENABLE, LOW);
+    outputModeBus();
+    for (unsigned int i = pageStartAddr; i < pageStartAddr + 64; i++)
+    {
+        // Write to page
+        writeByteTimedProperly(i, value[i-pageStartAddr]);
+        // Already 125ns delayed. Continue straight up
+    }
+
+    inputModeBus();
+
+    byte content = 0x00; // Define char to store data into
+    setAddress(pageStartAddr + 63);
+#ifdef DEBUG_WRITEPAGE
+    Serial.println("Polling DATA");
+    Serial.print("value: ");
+    Serial.println(value, HEX);
+    unsigned long timeStart = micros();
+#endif
+    do
+    {
+
+        // This does fail sometimes (hang up?).. Idk why.
+        // Dirty solution: When flashing, mesure the responses of arduino as some sort of heartbeat. IOf longer than f.ex. 1s, reset the entire flash.
+        digitalWrite(OUTPUT_ENABLE, LOW);
+        delayMicroseconds(1);
+        content = 0x00;
+        for (int i = DATA_7; i >= DATA_0; i--)
+        {
+            // Write Data to IO Bus one bit at a time, starting with MSB
+            content = (content << 1) | digitalRead(i); // Shift data from IO Bus into char
+        }
+
+        digitalWrite(OUTPUT_ENABLE, HIGH);
+        // Polling has normal Read Waveform Delay => CE is selected, OE is switching, so 70-100ns delay required.
+        // Maybe up to 350ns.. depending on chip and which time is valid.. (Datasheet p.11)
+        delayMicroseconds(2); // 2000ns delay.
+#ifdef DEBUG_WRITEPAGE
+        //Serial.println(content, HEX);
+#endif
+
+    } while (content != value[63]); // Always check last value.
+
+#ifdef DEBUG_WRITEPAGE
+    unsigned long timeNow = micros();
+#endif
+
+    digitalWrite(CHIP_ENABLE, HIGH);
+
+#ifdef DEBUG_WRITEPAGE
+
+    Serial.print("Stored Byte: ");
+    Serial.println(content, HEX);
+
+    Serial.print("Time for save at ");
+    Serial.print(pageStartAddr, HEX);
+    Serial.print(" (by polling): ");
+    Serial.print(timeNow - timeStart);
+    Serial.println("µs");
+#endif
 }
 
 void EEPROM::eraseEEPROM(const byte data)
 {
-    outputModeBus();
 
-    for (unsigned int i = 0; i < (unsigned int)32768; i++)
+    byte pageContent[64];
+    for (int i = 0; i < 64; i++)
     {
-        int addr = i;            //(8192 * i) + base + offset;
-        writeEEPROM(addr, data); // Actually write the data.
+        pageContent[i] = data;
+    }
+    for (unsigned int i = 0; i < (unsigned int)32768; i += 64)
+    {
+        Serial.print("Page: ");
+        Serial.print(i, HEX);
 
-        if (addr > (int)0x7FF0)
-        {
-            Serial.print(addr, HEX);
-            Serial.print(" ");
-        }
+        unsigned long startTime = micros();
+        writePage(i, pageContent); // Debug pattern. 5C
+        unsigned long endTime = micros();
 
-        // Some fancy outputting to console.
-        if (/*base* i % 512 == 0)
-        {
-            Serial.println();
-            Serial.print("[0x");
-            Serial.print(i, HEX); //* 8192 + base, HEX);
-            Serial.print("]:");
-        }
-    } //Serial.print(".");
-
-    Serial.println("flash erased.");
-    //Serial.println("e");
+        Serial.print(" erase took: ");
+        Serial.print(endTime - startTime);
+        Serial.println("µs.");
+    }
 }
-*/

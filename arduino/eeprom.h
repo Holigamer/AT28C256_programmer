@@ -11,9 +11,6 @@ class EEPROM
 {
 
 public:
-    static const int IOBusSize;
-    static const int IOBusMSBFirst[8];
-
     static void outputModeBus();
     static void inputModeBus();
 
@@ -29,34 +26,34 @@ public:
     * Part of basic functions
     * Be sure to define IO Bus as Input on all bits.
     */
-    char readEEPROM(short address);
+    byte readByte(unsigned short address);
 
     /**
      * Shift out adress into shift register, than latch it to overwrite current data
      * Part of basic functions
      */
-    void setAddress(short address, bool output_enable);
+    void setAddress(unsigned short address);
 
     /**
-     * Write a specific byte to the EEPROM @ address
-     * Part of basic functions
-     * Be sure to define IO Bus as Output on all bits.
-     * 
-     * (for timings see chapter 15. AC Write Waveforms of AT28C256-15PU datasheet)
-     * 
-     * @see outputModeBus();
+     * Write a page of data. (currently broken.)
      */
-    void writeEEPROM(short address, byte data);
+    void writePage(unsigned short address, byte data[64]);
 
     /**
      * As eraseEEPROM(byte), but with 0xff as default.
      */
-    void eraseEEPROM();
+   // void eraseEEPROM();
 
     /**
      * Erase contents of eeprom and write data into every place.
      */
     void eraseEEPROM(const byte data);
+
+private:
+    /**
+    * Write a byte to the EEPROM as fast as allowed, but without any chipselect lines. Only for internal use.
+    */
+    void writeByteTimedProperly(unsigned short addrOnPage, byte data);
 };
 
 #endif
