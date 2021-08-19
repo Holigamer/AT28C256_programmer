@@ -14,7 +14,7 @@ Commands are:
         - (PC): f
         - (AR): b // how many bytes?
         - (PC): 2bytes // (unsigned int) flashSize
-        - (AR): (flashSize<=0 ? b : r) // r = ready for chunk
+        - (AR): (flashSize<=0 || flashSize ! %64 ? b : r) // r = ready for chunk
         - (PC): 64bytes // data
         - (AR): r // ready for next chunk
         - (PC): 64bytes // data
