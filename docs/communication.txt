@@ -3,7 +3,7 @@ Each command Keyword is a char (8bit long word).
 Commands are:
     - p: Print entire content of EEPROM already formatted on Arduino
         - No Args
-        - response:
+        - response: (newline terminated)
             -either:    l<4 char hex addr>,( <2 char hex data>, )*16    // new data
             -or:        ...                                             // data repeats identically until otherwise
             -finally:   e                                               // end of data.
@@ -15,7 +15,7 @@ Commands are:
     - w: Write at specific address a specific byte
         - [2bytes: address, 1byte: data]
     - f: Flash the entire EEPROM with 64 byte chunks
-        - Commnucation as follows:
+        - Commnucation as follows: (no termination)
             - (PC): f
             - (AR): b // how many bytes?
             - (PC): 2bytes // (unsigned int) flashSize
