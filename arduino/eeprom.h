@@ -3,6 +3,9 @@
 
 #include <Arduino.h>
 
+#define STRICT_SILENT_MODE // Comment out if in debug.
+#define PRINT_CONTENT_FORMAT "l%04x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x"
+
 /**
  * @class EEPROM - This class provides IO functionality to interface with the AT28C256 EEPROM.
  * 

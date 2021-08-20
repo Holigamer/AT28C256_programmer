@@ -39,72 +39,64 @@ void EEPROM::outputModeBus()
 
 void EEPROM::printContent()
 {
-    for (int i = DATA_0; i <= DATA_7; i++)
-    {
-        pinMode(i, INPUT);
-    }
+    inputModeBus();
 
-    bool failedVerification = false;
+    //bool failedVerification = false;
 
     byte previous_data_cache[16] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
     bool already_skipped_bytes = false;
-    for (int i = 0; i <= 3; i++)
+    bool first16BytesRead = false; // If first line is all zero, it wouldn't get printed.
+
+    for (unsigned int base = 0; base < ((unsigned int)32768); base += 16) // Go through all bytes 16 bytes at a time
     {
-        //int i = 0; // Debug only
-        for (int base = 0; base <= (8191); base += 16)
+        byte data[16];                                  // Cache for one bytearray.
+        for (int offset = 0; offset <= 15; offset += 1) // Load data
         {
-            byte data[16];
-            for (int offset = 0; offset <= 15; offset += 1)
-            {
-                data[offset] = readByte((8192 * i) + base + offset);
-                /* if (verify0xFF && data[offset] != ((char)0xFF))
+            data[offset] = readByte(base + offset);
+            /* if (verify0xFF && data[offset] != ((char)0xFF))
                 {
                     failedVerification = true;
                 }*/
-            }
-
-            // Comparing
-            if (!array_cmp(data, previous_data_cache, 16, 16))
-            {
-
-                //Serial.println("debug compared unequal");
-                delayMicroseconds(10);
-                char buf[80];
-                // END OF OLD SUM
-                if (already_skipped_bytes) // Check if this is the start condition.
-                {
-                    sprintf(buf, "%04x:  %02x %02x %02x %02x %02x %02x %02x %02x   %02x %02x %02x %02x %02x %02x %02x %02x",
-                            (8192 * i) + base - 16, previous_data_cache[0], previous_data_cache[1], previous_data_cache[2], previous_data_cache[3], previous_data_cache[4], previous_data_cache[5], previous_data_cache[6], previous_data_cache[7],
-                            previous_data_cache[8], previous_data_cache[9], previous_data_cache[10], previous_data_cache[11], previous_data_cache[12], previous_data_cache[13], previous_data_cache[14], previous_data_cache[15]);
-                    Serial.println(buf);
-                }
-
-                already_skipped_bytes = false;
-                // BEGIN OF NEW SUM
-                sprintf(buf, "%04x:  %02x %02x %02x %02x %02x %02x %02x %02x   %02x %02x %02x %02x %02x %02x %02x %02x",
-                        (8192 * i) + base, data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
-                        data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
-                Serial.println(buf);
-            }
-            else
-            {
-                // Serial.println("debug compared equal");
-                // Arrays are equal
-                //Serial.println(",");
-                if (!already_skipped_bytes)
-                {
-                    already_skipped_bytes = true;
-                    Serial.println("...");
-                }
-            }
-
-            memcpy(previous_data_cache, data, sizeof(data[0]) * 16);
         }
+
+        if (array_cmp(data, previous_data_cache, 16, 16) && first16BytesRead) // Are the previous 16 bytes equal to the new buffer?
+        {
+            if (!already_skipped_bytes) // Have there already been bytes skipped?
+            {
+                already_skipped_bytes = true;
+                Serial.println("..."); // Print these wonderful dots.
+            }
+            // ==> No? Ok. continue doning nothing.
+        }
+        else
+        {
+            first16BytesRead = true; // First line gets printed.
+            already_skipped_bytes = false;
+            delayMicroseconds(10);
+            char buf[80];
+
+            /*if (already_skipped_bytes)
+            {
+                sprintf(buf, PRINT_CONTENT_FORMAT,
+                        (8192 * i) + base - 16, previous_data_cache[0], previous_data_cache[1], previous_data_cache[2], previous_data_cache[3], previous_data_cache[4], previous_data_cache[5], previous_data_cache[6], previous_data_cache[7],
+                        previous_data_cache[8], previous_data_cache[9], previous_data_cache[10], previous_data_cache[11], previous_data_cache[12], previous_data_cache[13], previous_data_cache[14], previous_data_cache[15]);
+                Serial.println(buf);
+            } */
+
+            sprintf(buf, PRINT_CONTENT_FORMAT,
+                    base, data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
+                    data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
+            Serial.println(buf);
+        }
+
+        memcpy(previous_data_cache, data, sizeof(data[0]) * 16);
     }
-    if (already_skipped_bytes)
+
+    if (already_skipped_bytes) // Print the last line always
     {
         char buf[80];
-        sprintf(buf, "%04x:  %02x %02x %02x %02x %02x %02x %02x %02x   %02x %02x %02x %02x %02x %02x %02x %02x",
+        sprintf(buf, PRINT_CONTENT_FORMAT,
                 32752, previous_data_cache[0], previous_data_cache[1], previous_data_cache[2], previous_data_cache[3], previous_data_cache[4], previous_data_cache[5], previous_data_cache[6], previous_data_cache[7],
                 previous_data_cache[8], previous_data_cache[9], previous_data_cache[10], previous_data_cache[11], previous_data_cache[12], previous_data_cache[13], previous_data_cache[14], previous_data_cache[15]);
         Serial.println(buf);
@@ -233,7 +225,7 @@ void EEPROM::writePage(unsigned short pageStartAddr, byte value[64])
     for (unsigned int i = pageStartAddr; i < pageStartAddr + 64; i++)
     {
         // Write to page
-        writeByteTimedProperly(i, value[i-pageStartAddr]);
+        writeByteTimedProperly(i, value[i - pageStartAddr]);
         // Already 125ns delayed. Continue straight up
     }
 
