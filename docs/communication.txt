@@ -3,7 +3,7 @@ Each command Keyword is a char (8bit long word).
 Commands are:
     - p: Print entire content of EEPROM already formatted on Arduino
         - No Args
-        - response: (newline terminated)
+        - response: (LF[\n] terminated)
             -either:    l<4 char hex addr>,( <2 char hex data>, )*16    // new data
             -or:        ...                                             // data repeats identically until otherwise
             -finally:   e                                               // end of data.
