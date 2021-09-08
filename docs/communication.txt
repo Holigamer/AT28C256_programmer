@@ -10,9 +10,9 @@ Commands are:
             
     - e: Erase entire EEPROM with 0xff
         - No Args
-    - c: Erase entire  EEPROM with custom one byte value
+    - c: Erase entire  EEPROM with custom one byte value (not implemented right now)
         - [1byte: value]
-    - w: Write at specific address a specific byte
+    - w: Write at specific address a specific byte (not implemented right now)
         - [2bytes: address, 1byte: data]
     - f: Flash the entire EEPROM with 64 byte chunks
         - Commnucation as follows: (no termination)
