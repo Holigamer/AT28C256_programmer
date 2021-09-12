@@ -9,7 +9,7 @@ Commands are:
             -finally:   e                                               // end of data.
             
     - e: Erase entire EEPROM with 0xff
-        - No Args
+        - (AR): pXXXX (Page XXXX erased X being ascii formatted in hex)
     - c: Erase entire  EEPROM with custom one byte value (not implemented right now)
         - [1byte: value]
     - w: Write at specific address a specific byte (not implemented right now)
