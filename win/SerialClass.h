@@ -28,7 +28,7 @@ class Serial
         ~Serial();
         //Read data in a buffer, if nbChar is greater than the
         //maximum number of bytes available, it will return only the
-        //bytes available. The function returns -1 when nothing could
+        //bytes available. The function returns 0 when nothing could
         //be read, the number of bytes actually read.
         int ReadData(char *buffer, unsigned int nbChar);
         //Writes data from a buffer through the Serial connection
