@@ -10,8 +10,13 @@ Commands are:
             
     - e: Erase entire EEPROM with 0xff
         - (AR): pXXXX (Page XXXX erased X being ascii formatted in hex)
+        - ....
+        - (AR): e (Finished erasing EEPROM)
     - c: Erase entire  EEPROM with custom one byte value (not implemented right now)
-        - [1byte: value]
+        - (PC)[1byte: value]
+        - (AR): pXXXX (Page XXXX erased X being ascii formatted in hex)
+        - ....
+        - (AR): e (Finished erasing EEPROM)
     - w: Write at specific address a specific byte (not implemented right now)
         - [2bytes: address, 1byte: data]
     - f: Flash the entire EEPROM with 64 byte chunks
