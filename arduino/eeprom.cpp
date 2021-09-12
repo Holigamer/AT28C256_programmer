@@ -12,13 +12,15 @@ EEPROM::EEPROM()
     pinMode(LATCH_CLOCK, OUTPUT);
     pinMode(LATCH_DATA, OUTPUT);
 
+    pinMode(WRITE_ENABLE, OUTPUT);
+    pinMode(OUTPUT_ENABLE, OUTPUT);
+    pinMode(CHIP_ENABLE, OUTPUT);
+
     digitalWrite(OUTPUT_ENABLE, LOW);
     digitalWrite(CHIP_ENABLE, HIGH);
     digitalWrite(WRITE_ENABLE, HIGH);
 
-    pinMode(WRITE_ENABLE, OUTPUT);
-    pinMode(OUTPUT_ENABLE, OUTPUT);
-    pinMode(CHIP_ENABLE, OUTPUT);
+    
 }
 
 void EEPROM::inputModeBus()
@@ -90,12 +92,13 @@ void EEPROM::printContent()
             Serial.println(buf);
         }
 
-        memcpy(previous_data_cache, data, sizeof(data[0]) * 16);
+        memcpy(previous_data_cache, data, sizeof(byte) * 16);
     }
 
     if (already_skipped_bytes) // Print the last line always
     {
         char buf[80];
+        //Serial.println("debug printed last");
         sprintf(buf, PRINT_CONTENT_FORMAT,
                 32752, previous_data_cache[0], previous_data_cache[1], previous_data_cache[2], previous_data_cache[3], previous_data_cache[4], previous_data_cache[5], previous_data_cache[6], previous_data_cache[7],
                 previous_data_cache[8], previous_data_cache[9], previous_data_cache[10], previous_data_cache[11], previous_data_cache[12], previous_data_cache[13], previous_data_cache[14], previous_data_cache[15]);
@@ -106,13 +109,14 @@ void EEPROM::printContent()
         Serial.print("VERIFY:");
         Serial.println(failedVerification ? "fail" : "success");
     }*/
-    Serial.println("e");
+    Serial.write('e');
 }
 
 byte EEPROM::readByte(unsigned short addr)
 {
-    digitalWrite(WRITE_ENABLE, HIGH); // Pull write Enable HIGH. Tells EEPROM that its a read OP
-    setAddress(addr);                 // Latch adress into adress register, output Enable = true
+    digitalWrite(WRITE_ENABLE, HIGH);   // Pull write Enable HIGH. Tells EEPROM that its a read OP
+    delayMicroseconds(1);               // Bugfix?
+    setAddress(addr);                   // Latch adress into adress register, output Enable = true
     digitalWrite(CHIP_ENABLE, LOW);
     digitalWrite(OUTPUT_ENABLE, LOW);
     delayMicroseconds(1);
@@ -191,7 +195,7 @@ void EEPROM::writeByteTimedProperly(unsigned short addrOnPage, byte data)
         data = data << 1;                         // Shift one to left. 1100 becomes 1000
     }
 
-    // Write enable @ PB5: Bxx1xxxxx
+    // WRITE_ENABLE @ PB5: Bxx1xxxxx 
     PORTB = PORTB & ~B00100000; // LOW
 
     // Write Pulse Width: min 100ns
@@ -208,8 +212,7 @@ void EEPROM::writeByteTimedProperly(unsigned short addrOnPage, byte data)
     // ByteLoadCycleTime 150µs (max)
 }
 
-// Comment in to show polling time of pagewrite.
-//#define DEBUG_WRITEPAGE
+
 void EEPROM::writePage(unsigned short pageStartAddr, byte value[64])
 {
     // Check if page is correct.
@@ -290,17 +293,25 @@ void EEPROM::eraseEEPROM(const byte data)
     {
         pageContent[i] = data;
     }
-    for (unsigned int i = 0; i < (unsigned int)32768; i += 64)
+    for (unsigned int i = 0; i <= (unsigned int)32767; i += 64)
     {
+        #ifdef DEBUG_ERASE
         Serial.print("Page: ");
-        Serial.print(i, HEX);
+        
 
         unsigned long startTime = micros();
-        writePage(i, pageContent); // Debug pattern. 5C
+        #endif
+        char buf[5];
+        sprintf(buf, "p%04x", i);
+        Serial.write(buf); // output page of erased page in ASCII (formatted to hex)
+        writePage(i, pageContent); 
+        #ifdef DEBUG_ERASE
         unsigned long endTime = micros();
 
         Serial.print(" erase took: ");
         Serial.print(endTime - startTime);
         Serial.println("µs.");
+        #endif
     }
+    Serial.write('e');
 }

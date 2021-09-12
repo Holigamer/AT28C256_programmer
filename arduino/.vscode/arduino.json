@@ -3,6 +3,6 @@
     "board": "arduino:avr:nano",
     "programmer": "arduino:avrispmkii",
     "output": "build",
-    "port": "COM6",
+    "port": "COM5",
     "sketch": "main.ino"
 }
