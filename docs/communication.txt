@@ -3,25 +3,35 @@ Each command Keyword is a char (8bit long word).
 Commands are:
     - p: Print entire content of EEPROM already formatted on Arduino
         - No Args
+        - response: (LF[\n] terminated)
+            -either:    l<4 char hex addr>,( <2 char hex data>, )*16    // new data
+            -or:        ...                                             // data repeats identically until otherwise
+            -finally:   e                                               // end of data.
+            
     - e: Erase entire EEPROM with 0xff
-        - No Args
-    - c: Erase entire  EEPROM with custom one byte value
-        - [1byte: value]
-    - w: Write at specific address a specific byte
+        - (AR): pXXXX (Page XXXX erased X being ascii formatted in hex)
+        - ....
+        - (AR): e (Finished erasing EEPROM)
+    - c: Erase entire  EEPROM with custom one byte value (not implemented right now)
+        - (PC)[1byte: value]
+        - (AR): pXXXX (Page XXXX erased X being ascii formatted in hex)
+        - ....
+        - (AR): e (Finished erasing EEPROM)
+    - w: Write at specific address a specific byte (not implemented right now)
         - [2bytes: address, 1byte: data]
     - f: Flash the entire EEPROM with 64 byte chunks
-        - Commnucation as follows:
-        - (PC): f
-        - (AR): b // how many bytes?
-        - (PC): 2bytes // (unsigned int) sizeof flashed data msb first.
-        - (AR): r // ready for data
-        - (PC): 64bytes // data
-        - (AR): r // ready for next chunk
-        - (PC): 64bytes // data
-        ...
-        - (AR): r // ready for next chunk
-        - (PC): 64bytes // data (last chunk)
-        - (AR): e // END Internal counter reached previously negotiated value.
-        - (AR): 2bytes // Confirm how many bytes have been written.
+        - Commnucation as follows: (no termination)
+            - (PC): f
+            - (AR): b // how many bytes?
+            - (PC): 2bytes // (unsigned int) flashSize
+            - (AR): (flashSize<=0 || flashSize ! %64 ? b : r) // r = ready for chunk
+            - (PC): 64bytes // data
+            - (AR): r // ready for next chunk
+            - (PC): 64bytes // data
+            ...
+            - (AR): r // ready for next chunk
+            - (PC): 64bytes // data (last chunk)
+            - (AR): e // END Internal counter reached previously negotiated value.
+            - (AR): 2bytes // Confirm how many bytes have been written.
 
 
