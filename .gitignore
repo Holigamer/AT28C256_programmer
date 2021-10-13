@@ -31,6 +31,9 @@
 *.out
 *.app
 
+#Visual Studio Folder
+.vscode/
+
 #Build Folder
 build/
 
